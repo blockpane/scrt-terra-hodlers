@@ -62,9 +62,9 @@ func getBalances(ctx context.Context, wg *sync.WaitGroup, client *grpc.ClientCon
 				select {
 				case a := <-account:
 					searched += 1
-					balResp, err := bankClient.AllBalances(
+					lunBalResp, err := bankClient.Balance(
 						metadata.AppendToOutgoingContext(context.Background(), grpctypes.GRPCBlockHeightHeader, fmt.Sprintf("%d", block)),
-						&bank.QueryAllBalancesRequest{Address: a},
+						&bank.QueryBalanceRequest{Address: a, Denom: lunaIbc},
 						grpc.Header(&header),
 					)
 					if err != nil {
@@ -74,20 +74,31 @@ func getBalances(ctx context.Context, wg *sync.WaitGroup, client *grpc.ClientCon
 						searched -= 1
 						continue
 					}
-					for _, coin := range balResp.Balances {
-						switch coin.Denom {
 
-						case lunaIbc:
-							flt, _, _ := new(big.Float).Parse(coin.Amount.String(), 10)
-							foundLuna <- fmt.Sprintf("%s,LUNA,%s\n", a, new(big.Float).Quo(flt, lunaPrecision).Text([]byte("f")[0], 6))
-							lunaCount += 1
+					// try both queries first so that we can retry if there is an error without creating duplicate entries
+					ustBalResp, err := bankClient.Balance(
+						metadata.AppendToOutgoingContext(context.Background(), grpctypes.GRPCBlockHeightHeader, fmt.Sprintf("%d", block)),
+						&bank.QueryBalanceRequest{Address: a, Denom: ustIbc},
+						grpc.Header(&header),
+					)
+					if err != nil {
+						log.Println("lookup", a, err)
+						// retry ...
+						account <- a
+						searched -= 1
+						continue
+					}
 
-						case ustIbc:
-							flt, _, _ := new(big.Float).Parse(coin.Amount.String(), 10)
-							foundUst <- fmt.Sprintf("%s,UST,%s\n", a, new(big.Float).Quo(flt, UstPrecision).Text([]byte("f")[0], 6))
-							ustCount += 1
+					if !lunBalResp.Balance.IsNil() && lunBalResp.Balance.IsPositive() {
+						flt, _, _ := new(big.Float).Parse(lunBalResp.Balance.Amount.String(), 10)
+						foundLuna <- fmt.Sprintf("%s,LUNA,%s\n", a, new(big.Float).Quo(flt, lunaPrecision).Text([]byte("f")[0], 6))
+						lunaCount += 1
+					}
 
-						}
+					if !ustBalResp.Balance.IsNil() && ustBalResp.Balance.IsPositive() {
+						flt, _, _ := new(big.Float).Parse(ustBalResp.Balance.Amount.String(), 10)
+						foundUst <- fmt.Sprintf("%s,UST,%s\n", a, new(big.Float).Quo(flt, UstPrecision).Text([]byte("f")[0], 6))
+						ustCount += 1
 					}
 				case <-ctx.Done():
 					return
