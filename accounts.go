@@ -27,7 +27,7 @@ func findAccounts(ctx context.Context, client *grpc.ClientConn, found chan strin
 			// some account types such as multi-sigs might not deserialize. Not sure how to deal with this.
 			// it's only a handful of accounts with an error, for now, accept some failures.
 			if e != nil {
-				log.Println(e)
+				log.Println("couldn't deserialize protobuf, possibly not a auth.BaseAccount?", e)
 				continue
 			}
 			found <- account.Address

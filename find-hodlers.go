@@ -15,6 +15,7 @@ func Run(endpoint string, block int64, workers int, outfileUst *os.File, outfile
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("searching for accounts at block height:", block)
 
 	defer client.Close()
 	defer outfileUst.Close()

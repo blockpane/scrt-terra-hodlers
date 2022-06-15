@@ -14,8 +14,6 @@ import (
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
-// "google.golang.org/grpc/metadata"
-
 const (
 	// IBC coin identifiers
 	lunaIbc = "ibc/D70B0FBF97AEB04491E9ABF4467A7F66CD6250F4382CE5192D856114B83738D2"
@@ -55,8 +53,8 @@ func getBalances(ctx context.Context, wg *sync.WaitGroup, client *grpc.ClientCon
 			defer log.Printf("worker %d exiting", worker)
 
 			bankClient := bank.NewQueryClient(client)
+			// set query height
 			var header metadata.MD
-			metadata.AppendToOutgoingContext(context.Background(), grpctypes.GRPCBlockHeightHeader, fmt.Sprintf("%d", block))
 
 			for {
 				select {
@@ -75,7 +73,7 @@ func getBalances(ctx context.Context, wg *sync.WaitGroup, client *grpc.ClientCon
 						continue
 					}
 
-					// try both queries first so that we can retry if there is an error without creating duplicate entries
+					// try both queries first so that we can retry if there is an error on either. Avoids creating duplicate csv entries
 					ustBalResp, err := bankClient.Balance(
 						metadata.AppendToOutgoingContext(context.Background(), grpctypes.GRPCBlockHeightHeader, fmt.Sprintf("%d", block)),
 						&bank.QueryBalanceRequest{Address: a, Denom: ustIbc},
@@ -91,13 +89,13 @@ func getBalances(ctx context.Context, wg *sync.WaitGroup, client *grpc.ClientCon
 
 					if !lunBalResp.Balance.IsNil() && lunBalResp.Balance.IsPositive() {
 						flt, _, _ := new(big.Float).Parse(lunBalResp.Balance.Amount.String(), 10)
-						foundLuna <- fmt.Sprintf("%s,LUNA,%s\n", a, new(big.Float).Quo(flt, lunaPrecision).Text([]byte("f")[0], 6))
+						foundLuna <- fmt.Sprintf("%s,LUNA,%s\n", a, new(big.Float).Quo(flt, lunaPrecision).Text('f', 6))
 						lunaCount += 1
 					}
 
 					if !ustBalResp.Balance.IsNil() && ustBalResp.Balance.IsPositive() {
 						flt, _, _ := new(big.Float).Parse(ustBalResp.Balance.Amount.String(), 10)
-						foundUst <- fmt.Sprintf("%s,UST,%s\n", a, new(big.Float).Quo(flt, UstPrecision).Text([]byte("f")[0], 6))
+						foundUst <- fmt.Sprintf("%s,UST,%s\n", a, new(big.Float).Quo(flt, UstPrecision).Text('f', 6))
 						ustCount += 1
 					}
 				case <-ctx.Done():
