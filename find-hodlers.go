@@ -32,9 +32,9 @@ func Run(endpoint string, block int64, workers int, outfileUst *os.File, outfile
 		for {
 			select {
 			case ust := <-ustBalance:
-				_, _ = outfileUst.WriteString(ust + "\n")
+				_, _ = outfileUst.WriteString(ust)
 			case luna := <-lunaBalance:
-				_, _ = outfileLuna.WriteString(luna + "\n")
+				_, _ = outfileLuna.WriteString(luna)
 			case <-doneChan:
 				return
 			}
@@ -46,7 +46,7 @@ func Run(endpoint string, block int64, workers int, outfileUst *os.File, outfile
 
 	// lookup each account's balance and send positive matches for luna or ust to
 	// the correct channel to be written as a csv line
-	go getBalances(ctx, wg, workers, block, accountChan, lunaBalance, ustBalance)
+	go getBalances(ctx, wg, client, workers, block, accountChan, lunaBalance, ustBalance)
 
 	// query all existing accounts and send to the getBalances function via the
 	// accountChan channel. BLocks until finished, the limited channel buffer should
