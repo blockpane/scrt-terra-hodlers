@@ -39,7 +39,11 @@ func main() {
 	if outfile == "<block-number>" {
 		outUST = fmt.Sprintf("%d-UST.csv", block)
 		outLUNA = fmt.Sprintf("%d-LUNA.csv", block)
+	} else {
+		outUST = fmt.Sprintf("%s-UST.csv", outfile)
+		outLUNA = fmt.Sprintf("%s-LUNA.csv", outfile)
 	}
+
 	fU, err := os.OpenFile(outUST, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatal(err)
