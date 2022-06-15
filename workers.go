@@ -71,6 +71,7 @@ func getBalances(ctx context.Context, wg *sync.WaitGroup, client *grpc.ClientCon
 						log.Println("lookup", a, err)
 						// retry ...
 						account <- a
+						searched -= 1
 						continue
 					}
 					for _, coin := range balResp.Balances {
@@ -78,12 +79,12 @@ func getBalances(ctx context.Context, wg *sync.WaitGroup, client *grpc.ClientCon
 
 						case lunaIbc:
 							flt, _, _ := new(big.Float).Parse(coin.Amount.String(), 10)
-							foundLuna <- fmt.Sprintf("%s,LUNA,%s\n", a, new(big.Float).Quo(flt, lunaPrecision).String())
+							foundLuna <- fmt.Sprintf("%s,LUNA,%s\n", a, new(big.Float).Quo(flt, lunaPrecision).Text([]byte("f")[0], 6))
 							lunaCount += 1
 
 						case ustIbc:
 							flt, _, _ := new(big.Float).Parse(coin.Amount.String(), 10)
-							foundUst <- fmt.Sprintf("%s,UST,%s\n", a, new(big.Float).Quo(flt, UstPrecision).String())
+							foundUst <- fmt.Sprintf("%s,UST,%s\n", a, new(big.Float).Quo(flt, UstPrecision).Text([]byte("f")[0], 6))
 							ustCount += 1
 
 						}
